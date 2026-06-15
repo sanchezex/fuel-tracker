@@ -1,13 +1,36 @@
-# Fleet Fuel Analytics (Rebuild)
+# Fleet Fuel Analytics
 
-A small fuel management + analytics app:
-- Frontend: React (Vite)
-- Backend: Node/Express
+A small fuel management + analytics app.
+
+## What you can do in the app
+- Manage vehicles
+  - Add vehicles (name + optional VIN)
+  - List vehicles for selection
+- Track fuel logs per vehicle
+  - Record date, odometer start/end (km), fuel used (liters), and optional notes
+  - View computed distance and estimated liters/100km per entry
+- View analytics summary
+  - Total distance and total fuel for the selected vehicle
+  - Average liters/100km (based on logged entries)
+  - Most recent fuel log
+
+## Architecture
+- Frontend: React + Vite
+- Backend: Node/Express REST API
 - Database: PostgreSQL
+
+## Project structure
+- `frontend/` - Vite React app
+  - `src/pages/FuelLogs.jsx` - fuel log CRUD UI (read + create)
+  - `src/pages/AnalyticsInsights.jsx` - summary dashboard
+- `backend/` - Express API
+  - `src/routes/vehicles.js` - vehicles endpoints
+  - `src/routes/fuelLogs.js` - fuel log endpoints
+  - `src/routes/analytics.js` - analytics summary endpoint
 
 ## Setup
 
-### 1) Create Postgres DB
+### 1) Create a Postgres database
 Example:
 - database: `fleet_fuel_analytics`
 - user/password: update as needed
@@ -35,8 +58,8 @@ npm run seed -w backend
 ```bash
 npm run dev
 ```
-Frontend on http://localhost:5173
-Backend on http://localhost:3000
+Frontend: http://localhost:5173
+Backend: http://localhost:3000
 
 ## API endpoints
 - `GET /api/vehicles`
@@ -44,5 +67,6 @@ Backend on http://localhost:3000
 - `GET /api/fuellogs?vehicleId=...`
 - `POST /api/fuellogs`
 - `GET /api/analytics/summary?vehicleId=...`
+
 
 
