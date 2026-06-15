@@ -2,31 +2,36 @@
 
 A small fuel management + analytics app.
 
-## What you can do in the app
-- Manage vehicles
+## What the app can do
+- Vehicles
   - Add vehicles (name + optional VIN)
-  - List vehicles for selection
-- Track fuel logs per vehicle
-  - Record date, odometer start/end (km), fuel used (liters), and optional notes
-  - View computed distance and estimated liters/100km per entry
-- View analytics summary
-  - Total distance and total fuel for the selected vehicle
-  - Average liters/100km (based on logged entries)
-  - Most recent fuel log
+  - Select a vehicle to view logs and analytics
+- Fuel logs
+  - Record fuel entries: date, odometer start/end (km), fuel used (liters), notes (optional)
+  - Automatically compute distance (end - start) and estimated liters/100km
+  - View your logged entries in a table
+- Analytics
+  - KPIs: total distance, total fuel, and average liters/100km
+  - Histogram: distribution of liters/100km
+  - Trend: simple time-series of liters/100km
 
-## Architecture
+## Analytics details (KPIs, histogram, charts)
+- KPIs (total distance, total fuel, avg liters/100km) are computed from the selected vehicle’s fuel logs.
+- Histogram shows the distribution (bins) of `litersPer100km` across all entries.
+- Trend chart plots `litersPer100km` over time using the fuel log dates.
+
+## How it’s built
+
 - Frontend: React + Vite
+  - `frontend/src/pages/FuelLogs.jsx` - fuel logs UI (read + create)
+  - `frontend/src/pages/AnalyticsInsights.jsx` - KPI cards + recent log
+  - `frontend/src/pages/AnalyticsKpisAndCharts.jsx` - KPIs + histogram + trend chart
+  - `frontend/src/styles.css` - green glass/gradient theme
 - Backend: Node/Express REST API
+  - `backend/src/routes/vehicles.js` - `/api/vehicles`
+  - `backend/src/routes/fuelLogs.js` - `/api/fuellogs`
+  - `backend/src/routes/analytics.js` - `/api/analytics/summary`
 - Database: PostgreSQL
-
-## Project structure
-- `frontend/` - Vite React app
-  - `src/pages/FuelLogs.jsx` - fuel log CRUD UI (read + create)
-  - `src/pages/AnalyticsInsights.jsx` - summary dashboard
-- `backend/` - Express API
-  - `src/routes/vehicles.js` - vehicles endpoints
-  - `src/routes/fuelLogs.js` - fuel log endpoints
-  - `src/routes/analytics.js` - analytics summary endpoint
 
 ## Setup
 
@@ -36,7 +41,6 @@ Example:
 - user/password: update as needed
 
 ### 2) Configure backend env
-Copy:
 ```bash
 cp backend/.env.example backend/.env
 ```
@@ -67,6 +71,7 @@ Backend: http://localhost:3000
 - `GET /api/fuellogs?vehicleId=...`
 - `POST /api/fuellogs`
 - `GET /api/analytics/summary?vehicleId=...`
+
 
 
 
