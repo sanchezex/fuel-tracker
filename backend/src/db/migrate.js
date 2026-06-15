@@ -94,6 +94,7 @@ async function main() {
         odometer_start_km numeric not null,
         odometer_end_km numeric not null,
         fuel_liters numeric not null,
+        price_per_liter numeric not null default 0,
         ops_data jsonb not null default '{}'::jsonb,
         notes text,
         created_at timestamptz not null default now()
@@ -102,13 +103,20 @@ async function main() {
       create index if not exists fuel_logs_vehicle_id_date_idx
         on fuel_logs(vehicle_id, date desc);
 
-      -- Add ops_data column to existing installations.
+      -- Add missing columns to existing installations.
       do $$ begin
         if not exists (
           select 1 from information_schema.columns
           where table_name = 'fuel_logs' and column_name = 'ops_data'
         ) then
           alter table fuel_logs add column ops_data jsonb not null default '{}'::jsonb;
+        end if;
+
+        if not exists (
+          select 1 from information_schema.columns
+          where table_name = 'fuel_logs' and column_name = 'price_per_liter'
+        ) then
+          alter table fuel_logs add column price_per_liter numeric not null default 0;
         end if;
       end $$;
     `)

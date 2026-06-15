@@ -1,4 +1,12 @@
+import dotenv from 'dotenv'
 import pg from 'pg'
+
+
+dotenv.config({ path: new URL('../.env', import.meta.url) })
+
+
+
+
 
 const { Pool } = pg
 
@@ -16,5 +24,6 @@ function buildPoolOptions() {
 }
 
 export const pool = new Pool(buildPoolOptions())
+
 
 

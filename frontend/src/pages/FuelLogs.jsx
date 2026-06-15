@@ -15,7 +15,6 @@ export default function FuelLogs() {
   const [vehicles, setVehicles] = useState([])
   const [vehicleId, setVehicleId] = useState('')
 
-
   const [logs, setLogs] = useState([])
 
   const [form, setForm] = useState({
@@ -23,14 +22,26 @@ export default function FuelLogs() {
     odometerStartKm: '',
     odometerEndKm: '',
     fuelLiters: '',
+    pricePerLiter: '',
     notes: ''
+  })
+
+  const [companyForm, setCompanyForm] = useState({
+    name: ''
+  })
+
+  const [driverForm, setDriverForm] = useState({
+    name: '',
+    enabled: false,
+    // when toggled off, we will keep vehicle unassigned unless user picks an existing driver
+    selectedExistingDriverId: ''
   })
 
   const [vehicleForm, setVehicleForm] = useState({
     name: '',
-    vin: '',
-    assignDriverId: ''
+    vin: ''
   })
+
 
   async function api(path, options = {}) {
     const res = await fetch(path, {
@@ -58,6 +69,33 @@ export default function FuelLogs() {
     if (data[0]?.id) setDriverId(String(data[0].id))
   }
 
+  async function createCompanyIfNeeded() {
+    if (!companyForm.name || !companyForm.name.trim()) return Number(companyId)
+    const created = await api('/api/companies', {
+      method: 'POST',
+      body: JSON.stringify({ name: companyForm.name.trim() })
+    })
+    const nextId = String(created?.id)
+    if (nextId) {
+      setCompanyId(nextId)
+      await loadDrivers(nextId).catch(console.error)
+      await loadVehicles(nextId).catch(console.error)
+    }
+    return Number(created.id)
+  }
+
+  async function createDriverIfNeeded(cid) {
+    if (!driverForm.enabled) return null
+    if (!driverForm.name || !driverForm.name.trim()) return driverForm.selectedExistingDriverId ? Number(driverForm.selectedExistingDriverId) : null
+
+    const created = await api('/api/drivers', {
+      method: 'POST',
+      body: JSON.stringify({ companyId: cid, name: driverForm.name.trim() })
+    })
+    return Number(created.id)
+  }
+
+
   async function loadVehicles(nextCompanyId) {
     const cid = nextCompanyId !== undefined ? nextCompanyId : companyId
     if (!cid) return
@@ -65,7 +103,6 @@ export default function FuelLogs() {
     setVehicles(data)
     if (data[0]?.id) setVehicleId(String(data[0].id))
   }
-
 
   async function loadLogs() {
     const data = await api('/api/fuellogs?vehicleId=' + encodeURIComponent(vehicleId || ''))
@@ -86,6 +123,14 @@ export default function FuelLogs() {
     loadDrivers().catch(console.error)
     loadVehicles().catch(console.error)
   }, [companyId])
+
+  useEffect(() => {
+    // Keep driverForm in sync if user turns off the typed assignment but wants to use existing.
+    if (!driverForm.enabled) {
+      // If they disable assignment, we should not attempt to create a driver.
+      // We keep selectedExistingDriverId as-is.
+    }
+  }, [driverForm.enabled])
 
 
   useEffect(() => {
@@ -109,6 +154,14 @@ export default function FuelLogs() {
     }
   }, [form])
 
+  const previewCost = useMemo(() => {
+    const liters = Number(form.fuelLiters)
+    const p = Number(form.pricePerLiter)
+    if (!Number.isFinite(liters) || liters < 0) return null
+    if (!Number.isFinite(p) || p < 0) return null
+    return liters * p
+  }, [form.fuelLiters, form.pricePerLiter])
+
   async function submit(e) {
     e.preventDefault()
     if (!vehicleId) return
@@ -119,6 +172,7 @@ export default function FuelLogs() {
       odometerStartKm: Number(form.odometerStartKm),
       odometerEndKm: Number(form.odometerEndKm),
       fuelLiters: Number(form.fuelLiters),
+      pricePerLiter: form.pricePerLiter === '' ? 0 : Number(form.pricePerLiter),
       notes: form.notes || null
     }
 
@@ -129,6 +183,7 @@ export default function FuelLogs() {
       odometerStartKm: '',
       odometerEndKm: '',
       fuelLiters: '',
+      pricePerLiter: '',
       notes: ''
     })
 
@@ -174,237 +229,344 @@ export default function FuelLogs() {
     await loadCompanies().catch(console.error)
   }
 
-
   return (
-    <div className="grid">
-      <div className="col-8">
-        <div className="card">
-          <h2 style={{ marginTop: 0 }}>Fuel Logs</h2>
+    <div className="container">
+      <div className="grid">
+        <div className="col-8">
+          <div className="card">
+            <h2 style={{ marginTop: 0 }}>Fuel Logs</h2>
 
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12 }}>
-            <div style={{ flex: 1 }}>
-              <label>Company</label>
-              <select
-                value={companyId}
-                onChange={(e) => {
-                  setCompanyId(e.target.value)
-                  setVehicleId('')
-                }}
-              >
-                {companies.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div style={{ width: 160 }}>
-              <label style={{ opacity: 0 }}>Delete</label>
-              <button
-                type="button"
-                disabled={!companyId}
-                onClick={() => deleteCompany(companyId)}
-                style={{ width: '100%', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 10px', cursor: 'pointer' }}
-                title="Delete company"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-
-
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12 }}>
-            <div style={{ flex: 1 }}>
-              <label>Vehicle</label>
-              <select value={vehicleId} onChange={(e) => setVehicleId(e.target.value)}>
-                {vehicles.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div style={{ width: 140 }}>
-              <label style={{ opacity: 0 }}>Delete</label>
-              <button
-                type="button"
-                disabled={!vehicleId}
-                onClick={() => deleteVehicle(vehicleId)}
-                style={{ width: '100%', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 10px', cursor: 'pointer' }}
-                title="Delete vehicle"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-
-
-          <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid rgba(148,163,184,0.35)' }}>
-            <h3 style={{ marginTop: 0, marginBottom: 8 }}>Register Vehicle</h3>
-
-            <form
-              onSubmit={async (e) => {
-                e.preventDefault()
-                if (!companyId) return
-                const payload = {
-                  companyId: Number(companyId),
-                  name: vehicleForm.name,
-                  vin: vehicleForm.vin || null,
-                  driverId: vehicleForm.assignDriverId ? Number(vehicleForm.assignDriverId) : null
-                }
-
-                const created = await api('/api/vehicles', { method: 'POST', body: JSON.stringify(payload) })
-
-                // Reload vehicles for current company and select the created one.
-                await loadVehicles(companyId).catch(console.error)
-                if (created?.id) setVehicleId(String(created.id))
-
-                setVehicleForm({ name: '', vin: '', assignDriverId: '' })
-              }}
-            >
-              <div style={{ marginBottom: 10 }}>
-                <label>Vehicle name *</label>
-                <input
-                  value={vehicleForm.name}
-                  onChange={(e) => setVehicleForm({ ...vehicleForm, name: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div style={{ marginBottom: 10 }}>
-                <label>VIN (optional)</label>
-                <input
-                  value={vehicleForm.vin}
-                  onChange={(e) => setVehicleForm({ ...vehicleForm, vin: e.target.value })}
-                  placeholder="e.g. 1HGCM82633A004352"
-                />
-              </div>
-
-              <div style={{ marginBottom: 10 }}>
-                <label>Assign driver (optional)</label>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12 }}>
+              <div style={{ flex: 1 }}>
+                <label>Company</label>
                 <select
-                  value={vehicleForm.assignDriverId}
-                  onChange={(e) => setVehicleForm({ ...vehicleForm, assignDriverId: e.target.value })}
+                  value={companyId}
+                  onChange={(e) => {
+                    setCompanyId(e.target.value)
+                    setVehicleId('')
+                    setCompanyForm({ name: '' })
+                  }}
                 >
-                  <option value="">— Unassigned —</option>
-                  {drivers.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name}
+                  {companies.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+                <div style={{ marginTop: 8 }}>
+                  <label style={{ display: 'block' }}>or type new company</label>
+                  <input
+                    value={companyForm.name}
+                    onChange={(e) => setCompanyForm({ name: e.target.value })}
+                    placeholder="e.g. Acme Logistics"
+                  />
+                </div>
+              </div>
+
+
+              <div style={{ width: 160 }}>
+                <label style={{ opacity: 0 }}>Delete</label>
+                <button
+                  type="button"
+                  disabled={!companyId}
+                  onClick={() => deleteCompany(companyId)}
+                  style={{
+                    width: '100%',
+                    background: '#ef4444',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 8,
+                    padding: '8px 10px',
+                    cursor: 'pointer'
+                  }}
+                  title="Delete company"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12 }}>
+              <div style={{ flex: 1 }}>
+                <label>Vehicle</label>
+                <select value={vehicleId} onChange={(e) => setVehicleId(e.target.value)}>
+                  {vehicles.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.name}
                     </option>
                   ))}
                 </select>
               </div>
 
-              <button type="submit" disabled={!companyId} style={{ width: '100%' }}>
-                Create vehicle
+              <div style={{ width: 140 }}>
+                <label style={{ opacity: 0 }}>Delete</label>
+                <button
+                  type="button"
+                  disabled={!vehicleId}
+                  onClick={() => deleteVehicle(vehicleId)}
+                  style={{
+                    width: '100%',
+                    background: '#ef4444',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 8,
+                    padding: '8px 10px',
+                    cursor: 'pointer'
+                  }}
+                  title="Delete vehicle"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+
+            <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid rgba(148,163,184,0.35)' }}>
+              <h3 style={{ marginTop: 0, marginBottom: 8 }}>Register Vehicle</h3>
+
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault()
+
+                  const nextCompanyIdNum = await createCompanyIfNeeded().catch((err) => {
+                    console.error(err)
+                    window.alert('Failed to create company')
+                    return null
+                  })
+
+                  if (!nextCompanyIdNum) return
+
+                  let nextDriverId = null
+                  try {
+                    nextDriverId = await createDriverIfNeeded(nextCompanyIdNum)
+                  } catch (err) {
+                    console.error(err)
+                    window.alert('Failed to create driver')
+                    return
+                  }
+
+                  const payload = {
+                    companyId: nextCompanyIdNum,
+                    name: vehicleForm.name,
+                    vin: vehicleForm.vin || null,
+                    driverId: nextDriverId
+                  }
+
+                  const created = await api('/api/vehicles', {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                  })
+
+                  await loadVehicles(nextCompanyIdNum).catch(console.error)
+                  if (created?.id) setVehicleId(String(created.id))
+
+                  setCompanyForm({ name: '' })
+                  setDriverForm({ name: '', enabled: false, selectedExistingDriverId: '' })
+                  setVehicleForm({ name: '', vin: '' })
+                }}
+              >
+
+                <div style={{ marginBottom: 10 }}>
+                  <label>Vehicle name <span style={{ color: '#ef4444' }}>*</span></label>
+                  <input
+                    value={vehicleForm.name}
+                    onChange={(e) => setVehicleForm({ ...vehicleForm, name: e.target.value })}
+                    required
+                  />
+                </div>
+
+
+                <div style={{ marginBottom: 10 }}>
+                  <label>VIN (optional)</label>
+                  <input
+                    value={vehicleForm.vin}
+                    onChange={(e) => setVehicleForm({ ...vehicleForm, vin: e.target.value })}
+                    placeholder="e.g. 1HGCM82633A004352"
+                  />
+                </div>
+
+                <div style={{ marginBottom: 10 }}>
+                  <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <input
+                      type="checkbox"
+                      checked={driverForm.enabled}
+                      onChange={(e) => setDriverForm({ ...driverForm, enabled: e.target.checked })}
+                    />
+                    Assign driver (optional)
+                  </label>
+
+                  {driverForm.enabled && (
+                    <>
+                      <div style={{ marginTop: 8 }}>
+                        <label>Driver name</label>
+                        <input
+                          value={driverForm.name}
+                          onChange={(e) => setDriverForm({ ...driverForm, name: e.target.value })}
+                          placeholder="Type driver name"
+                        />
+                      </div>
+                      <div style={{ marginTop: 8, opacity: 0.9 }}>
+                        <label style={{ display: 'block', marginBottom: 4 }}>
+                          or choose existing (optional)
+                        </label>
+                        <select
+                          value={driverForm.selectedExistingDriverId}
+                          onChange={(e) =>
+                            setDriverForm({ ...driverForm, selectedExistingDriverId: e.target.value })
+                          }
+                        >
+                          <option value="">— Use typed name (above) —</option>
+                          {drivers.map((d) => (
+                            <option key={d.id} value={d.id}>
+                              {d.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+
+                <button type="submit" disabled={!companyId} style={{ width: '100%' }}>
+                  Create vehicle
+                </button>
+              </form>
+            </div>
+
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Distance (km)</th>
+                  <th>Fuel (L)</th>
+                  <th>Liters / 100km</th>
+                <th>Notes</th>
+                <th>Cost</th>
+                </tr>
+              </thead>
+              <tbody>
+                {logs.map((l) => (
+                  <tr key={l.id}>
+                    <td>{new Date(l.date).toLocaleDateString()}</td>
+                    <td>{fmt(l.distanceKm)}</td>
+                    <td>{fmt(l.fuelLiters)}</td>
+                    <td>{fmt(l.litersPer100km)}</td>
+                    <td>{l.notes || '—'}</td>
+                    <td>{fmt(l.cost)}</td>
+                  </tr>
+                ))}
+                {logs.length === 0 && (
+                  <tr>
+                    <td colSpan={6} style={{ padding: '18px 0', color: '#64748b' }}>
+                      No logs yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="col-4">
+          <div className="card">
+            <h3 style={{ marginTop: 0 }}>Add Fuel Entry</h3>
+
+            <form onSubmit={submit}>
+              <div style={{ marginBottom: 10 }}>
+                <label>
+                  Date <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="date"
+                  value={form.date}
+                  onChange={(e) => setForm({ ...form, date: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div style={{ marginBottom: 10 }}>
+                <label>
+                  Odometer Start (km) <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  inputMode="numeric"
+                  value={form.odometerStartKm}
+                  onChange={(e) => setForm({ ...form, odometerStartKm: e.target.value })}
+                  placeholder="e.g. 125000"
+                  required
+                />
+              </div>
+
+              <div style={{ marginBottom: 10 }}>
+                <label>
+                  Odometer End (km) <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  inputMode="numeric"
+                  value={form.odometerEndKm}
+                  onChange={(e) => setForm({ ...form, odometerEndKm: e.target.value })}
+                  placeholder="e.g. 125420"
+                  required
+                />
+              </div>
+
+              <div style={{ marginBottom: 10 }}>
+                <label>
+                  Fuel Used (liters) <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  inputMode="decimal"
+                  value={form.fuelLiters}
+                  onChange={(e) => setForm({ ...form, fuelLiters: e.target.value })}
+                  placeholder="e.g. 42.5"
+                  required
+                />
+              </div>
+
+              <div style={{ marginBottom: 10 }}>
+                <label>Price per liter</label>
+                <input
+                  inputMode="decimal"
+                  value={form.pricePerLiter}
+                  onChange={(e) => setForm({ ...form, pricePerLiter: e.target.value })}
+                  placeholder="e.g. 1.35"
+                />
+              </div>
+
+              <div style={{ marginBottom: 10 }}>
+                <label>Notes (optional)</label>
+                <input
+                  value={form.notes}
+                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                  placeholder="e.g. highway / city mix"
+                />
+              </div>
+
+
+              <div style={{ margin: '14px 0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <span style={{ color: '#64748b' }}>Distance</span>
+                  <b>{fmt(computed.distanceKm)} km</b>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748b' }}>Estimated liters / 100km</span>
+                  <b>{computed.litersPer100km === null ? '—' : fmt(computed.litersPer100km)}</b>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+                  <span style={{ color: '#64748b' }}>Estimated cost</span>
+                  <b>{previewCost === null ? '—' : fmt(previewCost)}</b>
+                </div>
+              </div>
+
+              <button type="submit" disabled={!vehicleId} style={{ width: '100%' }}>
+                Save
               </button>
             </form>
+
+            <p style={{ marginTop: 12, fontSize: 12, color: '#64748b' }}>
+              Tip: pick a company; seed/dev creates drivers + vehicles under it.
+            </p>
           </div>
-
-
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Distance (km)</th>
-                <th>Fuel (L)</th>
-                <th>Liters / 100km</th>
-                <th>Notes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logs.map((l) => (
-                <tr key={l.id}>
-                  <td>{new Date(l.date).toLocaleDateString()}</td>
-                  <td>{fmt(l.distanceKm)}</td>
-                  <td>{fmt(l.fuelLiters)}</td>
-                  <td>{fmt(l.litersPer100km)}</td>
-                  <td>{l.notes || '—'}</td>
-                </tr>
-              ))}
-              {logs.length === 0 && (
-                <tr>
-                  <td colSpan={5} style={{ padding: '18px 0', color: '#64748b' }}>
-                    No logs yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="col-4">
-        <div className="card">
-          <h3 style={{ marginTop: 0 }}>Add Fuel Entry</h3>
-
-          <form onSubmit={submit}>
-            <div style={{ marginBottom: 10 }}>
-              <label>Date</label>
-              <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
-            </div>
-
-            <div style={{ marginBottom: 10 }}>
-              <label>Odometer Start (km)</label>
-              <input
-                inputMode="numeric"
-                value={form.odometerStartKm}
-                onChange={(e) => setForm({ ...form, odometerStartKm: e.target.value })}
-                placeholder="e.g. 125000"
-              />
-            </div>
-
-            <div style={{ marginBottom: 10 }}>
-              <label>Odometer End (km)</label>
-              <input
-                inputMode="numeric"
-                value={form.odometerEndKm}
-                onChange={(e) => setForm({ ...form, odometerEndKm: e.target.value })}
-                placeholder="e.g. 125420"
-              />
-            </div>
-
-            <div style={{ marginBottom: 10 }}>
-              <label>Fuel Used (liters)</label>
-              <input
-                inputMode="decimal"
-                value={form.fuelLiters}
-                onChange={(e) => setForm({ ...form, fuelLiters: e.target.value })}
-                placeholder="e.g. 42.5"
-              />
-            </div>
-
-            <div style={{ marginBottom: 10 }}>
-              <label>Notes (optional)</label>
-              <input
-                value={form.notes}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                placeholder="e.g. highway / city mix"
-              />
-            </div>
-
-            <div style={{ margin: '14px 0' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span style={{ color: '#64748b' }}>Distance</span>
-                <b>{fmt(computed.distanceKm)} km</b>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#64748b' }}>Estimated liters / 100km</span>
-                <b>{computed.litersPer100km === null ? '—' : fmt(computed.litersPer100km)}</b>
-              </div>
-            </div>
-
-            <button type="submit" disabled={!vehicleId} style={{ width: '100%' }}>
-              Save
-            </button>
-          </form>
-
-          <p style={{ marginTop: 12, fontSize: 12, color: '#64748b' }}>
-            Tip: pick a company; seed/dev creates drivers + vehicles under it.
-          </p>
-
         </div>
       </div>
     </div>
