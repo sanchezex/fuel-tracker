@@ -137,6 +137,43 @@ button.secondary {
   border-collapse: collapse;
 }
 
+.chartWrap {
+  margin-top: 8px;
+  border-radius: 14px;
+  border: 1px solid rgba(22, 163, 74, 0.18);
+  background: rgba(255, 255, 255, 0.65);
+  padding: 12px;
+}
+
+.chartSvg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.chartLegend {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 8px;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #475569;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.legendSwatch {
+  width: 14px;
+  height: 10px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #22c55e, #16a34a);
+}
+
+
 .table th,
 .table td {
   border-bottom: 1px solid #e2e8f0;
