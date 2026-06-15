@@ -36,4 +36,20 @@ vehiclesRouter.post('/vehicles', async (req, res) => {
   res.status(201).json(rows[0])
 })
 
+vehiclesRouter.delete('/vehicles/:vehicleId', async (req, res) => {
+  const vehicleId = Number(req.params.vehicleId)
+  if (!Number.isFinite(vehicleId)) return res.status(400).json({ error: 'vehicleId is invalid' })
+
+  const { rows } = await pool.query(
+    'delete from vehicles where id=$1 returning id',
+    [vehicleId]
+  )
+
+  if (!rows.length) return res.status(404).json({ error: 'vehicle not found' })
+  return res.json({ ok: true })
+})
+
+
+
+
 

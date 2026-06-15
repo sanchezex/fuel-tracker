@@ -135,6 +135,46 @@ export default function FuelLogs() {
     loadLogs().catch(console.error)
   }
 
+  async function deleteVehicle(id) {
+    if (!id) return
+    const ok = window.confirm('Delete this vehicle? This will also delete its fuel logs.')
+    if (!ok) return
+
+    await api('/api/vehicles/' + encodeURIComponent(id), { method: 'DELETE' })
+
+    // Reload current company vehicles.
+    await loadVehicles().catch(console.error)
+
+    // Clear selection if deleted.
+    if (vehicleId && String(id) === String(vehicleId)) setVehicleId('')
+
+    // Reload logs if vehicle still selected.
+    if (vehicleId && String(id) !== String(vehicleId)) {
+      loadLogs().catch(console.error)
+    } else {
+      setLogs([])
+    }
+  }
+
+  async function deleteCompany(id) {
+    if (!id) return
+    const ok = window.confirm('Delete this company? This will delete all its drivers and vehicles.')
+    if (!ok) return
+
+    await api('/api/companies/' + encodeURIComponent(id), { method: 'DELETE' })
+
+    // Reset everything and reload lists.
+    setCompanyId('')
+    setDriverId('')
+    setVehicleId('')
+    setDrivers([])
+    setVehicles([])
+    setLogs([])
+
+    await loadCompanies().catch(console.error)
+  }
+
+
   return (
     <div className="grid">
       <div className="col-8">
@@ -158,7 +198,21 @@ export default function FuelLogs() {
                 ))}
               </select>
             </div>
+
+            <div style={{ width: 160 }}>
+              <label style={{ opacity: 0 }}>Delete</label>
+              <button
+                type="button"
+                disabled={!companyId}
+                onClick={() => deleteCompany(companyId)}
+                style={{ width: '100%', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 10px', cursor: 'pointer' }}
+                title="Delete company"
+              >
+                Delete
+              </button>
+            </div>
           </div>
+
 
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12 }}>
             <div style={{ flex: 1 }}>
@@ -171,7 +225,21 @@ export default function FuelLogs() {
                 ))}
               </select>
             </div>
+
+            <div style={{ width: 140 }}>
+              <label style={{ opacity: 0 }}>Delete</label>
+              <button
+                type="button"
+                disabled={!vehicleId}
+                onClick={() => deleteVehicle(vehicleId)}
+                style={{ width: '100%', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 10px', cursor: 'pointer' }}
+                title="Delete vehicle"
+              >
+                Delete
+              </button>
+            </div>
           </div>
+
 
           <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid rgba(148,163,184,0.35)' }}>
             <h3 style={{ marginTop: 0, marginBottom: 8 }}>Register Vehicle</h3>

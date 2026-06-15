@@ -20,3 +20,17 @@ companiesRouter.post('/companies', async (req, res) => {
   res.status(201).json(rows[0])
 })
 
+companiesRouter.delete('/companies/:companyId', async (req, res) => {
+  const companyId = Number(req.params.companyId)
+  if (!Number.isFinite(companyId)) return res.status(400).json({ error: 'companyId is invalid' })
+
+  const { rows } = await pool.query(
+    'delete from companies where id=$1 returning id',
+    [companyId]
+  )
+
+  if (!rows.length) return res.status(404).json({ error: 'company not found' })
+  return res.json({ ok: true })
+})
+
+
