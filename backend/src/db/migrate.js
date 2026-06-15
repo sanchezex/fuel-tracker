@@ -94,12 +94,23 @@ async function main() {
         odometer_start_km numeric not null,
         odometer_end_km numeric not null,
         fuel_liters numeric not null,
+        ops_data jsonb not null default '{}'::jsonb,
         notes text,
         created_at timestamptz not null default now()
       );
 
       create index if not exists fuel_logs_vehicle_id_date_idx
         on fuel_logs(vehicle_id, date desc);
+
+      -- Add ops_data column to existing installations.
+      do $$ begin
+        if not exists (
+          select 1 from information_schema.columns
+          where table_name = 'fuel_logs' and column_name = 'ops_data'
+        ) then
+          alter table fuel_logs add column ops_data jsonb not null default '{}'::jsonb;
+        end if;
+      end $$;
     `)
 
     console.log('Migrations complete')

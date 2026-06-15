@@ -77,13 +77,20 @@ async function main() {
             { date: '2026-03-17', s: base + 460, e: base + 720, liters: 26.7, notes: 'highway-ish' }
           ]
 
+      // Insert seed logs with deterministic ops_data.
       for (const row of seed) {
+        const opsData = {
+          avgSpeedKmh: idx === 0 ? 68 : 55,
+          avgRpm: idx === 0 ? 1950 : 2100
+        }
+
         await client.query(
-          `insert into fuel_logs (vehicle_id, date, odometer_start_km, odometer_end_km, fuel_liters, notes)
-           values ($1,$2,$3,$4,$5,$6)`,
-          [vehicleId, row.date, row.s, row.e, row.liters, row.notes]
+          `insert into fuel_logs (vehicle_id, date, odometer_start_km, odometer_end_km, fuel_liters, ops_data, notes)
+           values ($1,$2,$3,$4,$5,$6,$7)`,
+          [vehicleId, row.date, row.s, row.e, row.liters, opsData, row.notes]
         )
       }
+
     }
 
     console.log('Seed complete')

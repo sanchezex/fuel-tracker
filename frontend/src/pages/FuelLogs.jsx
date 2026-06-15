@@ -26,6 +26,12 @@ export default function FuelLogs() {
     notes: ''
   })
 
+  const [vehicleForm, setVehicleForm] = useState({
+    name: '',
+    vin: '',
+    assignDriverId: ''
+  })
+
   async function api(path, options = {}) {
     const res = await fetch(path, {
       headers: { 'Content-Type': 'application/json' },
@@ -138,7 +144,13 @@ export default function FuelLogs() {
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12 }}>
             <div style={{ flex: 1 }}>
               <label>Company</label>
-              <select value={companyId} onChange={(e) => setCompanyId(e.target.value)}>
+              <select
+                value={companyId}
+                onChange={(e) => {
+                  setCompanyId(e.target.value)
+                  setVehicleId('')
+                }}
+              >
                 {companies.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -159,6 +171,68 @@ export default function FuelLogs() {
                 ))}
               </select>
             </div>
+          </div>
+
+          <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid rgba(148,163,184,0.35)' }}>
+            <h3 style={{ marginTop: 0, marginBottom: 8 }}>Register Vehicle</h3>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault()
+                if (!companyId) return
+                const payload = {
+                  companyId: Number(companyId),
+                  name: vehicleForm.name,
+                  vin: vehicleForm.vin || null,
+                  driverId: vehicleForm.assignDriverId ? Number(vehicleForm.assignDriverId) : null
+                }
+
+                const created = await api('/api/vehicles', { method: 'POST', body: JSON.stringify(payload) })
+
+                // Reload vehicles for current company and select the created one.
+                await loadVehicles(companyId).catch(console.error)
+                if (created?.id) setVehicleId(String(created.id))
+
+                setVehicleForm({ name: '', vin: '', assignDriverId: '' })
+              }}
+            >
+              <div style={{ marginBottom: 10 }}>
+                <label>Vehicle name *</label>
+                <input
+                  value={vehicleForm.name}
+                  onChange={(e) => setVehicleForm({ ...vehicleForm, name: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div style={{ marginBottom: 10 }}>
+                <label>VIN (optional)</label>
+                <input
+                  value={vehicleForm.vin}
+                  onChange={(e) => setVehicleForm({ ...vehicleForm, vin: e.target.value })}
+                  placeholder="e.g. 1HGCM82633A004352"
+                />
+              </div>
+
+              <div style={{ marginBottom: 10 }}>
+                <label>Assign driver (optional)</label>
+                <select
+                  value={vehicleForm.assignDriverId}
+                  onChange={(e) => setVehicleForm({ ...vehicleForm, assignDriverId: e.target.value })}
+                >
+                  <option value="">— Unassigned —</option>
+                  {drivers.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <button type="submit" disabled={!companyId} style={{ width: '100%' }}>
+                Create vehicle
+              </button>
+            </form>
           </div>
 
 

@@ -14,6 +14,7 @@ fuelLogsRouter.get('/fuellogs', async (req, res) => {
       fl.odometer_start_km as odometerStartKm,
       fl.odometer_end_km as odometerEndKm,
       fl.fuel_liters as fuelLiters,
+      fl.ops_data as opsData,
       fl.notes,
       (fl.odometer_end_km - fl.odometer_start_km) as distance_km,
       case 
@@ -31,7 +32,8 @@ fuelLogsRouter.get('/fuellogs', async (req, res) => {
     date: r.date,
     odometerStartKm: r.odometerstartkm ?? r.odometerStartKm,
     odometerEndKm: r.odometerEndKm,
-    fuelLiters: r.fuelliters ?? r.fuelLiters,
+    fuelLiters: r.fuelLiters,
+    opsData: r.opsData || {},
     notes: r.notes,
     distanceKm: r.distance_km,
     litersPer100km: r.liters_per_100km
@@ -41,7 +43,7 @@ fuelLogsRouter.get('/fuellogs', async (req, res) => {
 })
 
 fuelLogsRouter.post('/fuellogs', async (req, res) => {
-  const { vehicleId, date, odometerStartKm, odometerEndKm, fuelLiters, notes } = req.body || {}
+  const { vehicleId, date, odometerStartKm, odometerEndKm, fuelLiters, opsData, notes } = req.body || {}
 
   if (!vehicleId) return res.status(400).json({ error: 'vehicleId is required' })
   if (!date) return res.status(400).json({ error: 'date is required' })
@@ -50,20 +52,26 @@ fuelLogsRouter.post('/fuellogs', async (req, res) => {
   }
   if (fuelLiters === undefined) return res.status(400).json({ error: 'fuelLiters is required' })
 
+  // opsData is flexible: store as provided (default to {}).
+  let ops = opsData
+  if (ops === undefined || ops === null) ops = {}
+
   const { rows } = await pool.query(
-    `insert into fuel_logs (vehicle_id, date, odometer_start_km, odometer_end_km, fuel_liters, notes)
-     values ($1,$2,$3,$4,$5,$6)
-     returning id, vehicle_id, date, odometer_start_km, odometer_end_km, fuel_liters, notes`,
+    `insert into fuel_logs (vehicle_id, date, odometer_start_km, odometer_end_km, fuel_liters, ops_data, notes)
+     values ($1,$2,$3,$4,$5,$6,$7)
+     returning id, vehicle_id, date, odometer_start_km, odometer_end_km, fuel_liters, ops_data, notes`,
     [
       Number(vehicleId),
       date,
       Number(odometerStartKm),
       Number(odometerEndKm),
       Number(fuelLiters),
+      ops,
       notes || null
     ]
   )
 
   res.status(201).json(rows[0])
 })
+
 
