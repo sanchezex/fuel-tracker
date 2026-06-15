@@ -117,7 +117,7 @@ export default function AnalyticsKpisAndCharts() {
           <h2 style={{ marginTop: 0 }}>Analytics (KPIs & Charts)</h2>
 
           <div style={{ marginBottom: 12 }}>
-            <label>Vehicle</label>
+            <label>Vehicle (charts are vehicle-scoped)</label>
             <select value={vehicleId} onChange={(e) => setVehicleId(e.target.value)}>
               {vehicles.map((v) => (
                 <option key={v.id} value={v.id}>
@@ -126,6 +126,7 @@ export default function AnalyticsKpisAndCharts() {
               ))}
             </select>
           </div>
+
 
           <div className="grid" style={{ marginTop: 10 }}>
             <div className="col-4 card" style={{ margin: 0, boxShadow: 'none' }}>

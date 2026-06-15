@@ -6,8 +6,15 @@ function fmt(n) {
 }
 
 export default function FuelLogs() {
+  const [companies, setCompanies] = useState([])
+  const [companyId, setCompanyId] = useState('')
+
+  const [drivers, setDrivers] = useState([])
+  const [driverId, setDriverId] = useState('')
+
   const [vehicles, setVehicles] = useState([])
   const [vehicleId, setVehicleId] = useState('')
+
 
   const [logs, setLogs] = useState([])
 
@@ -31,11 +38,28 @@ export default function FuelLogs() {
     return res.json()
   }
 
-  async function loadVehicles() {
-    const data = await api('/api/vehicles')
+  async function loadCompanies() {
+    const data = await api('/api/companies')
+    setCompanies(data)
+    if (data[0]?.id) setCompanyId(String(data[0].id))
+  }
+
+  async function loadDrivers(nextCompanyId) {
+    const cid = nextCompanyId !== undefined ? nextCompanyId : companyId
+    if (!cid) return
+    const data = await api('/api/drivers?companyId=' + encodeURIComponent(cid))
+    setDrivers(data)
+    if (data[0]?.id) setDriverId(String(data[0].id))
+  }
+
+  async function loadVehicles(nextCompanyId) {
+    const cid = nextCompanyId !== undefined ? nextCompanyId : companyId
+    if (!cid) return
+    const data = await api('/api/vehicles?companyId=' + encodeURIComponent(cid))
     setVehicles(data)
     if (data[0]?.id) setVehicleId(String(data[0].id))
   }
+
 
   async function loadLogs() {
     const data = await api('/api/fuellogs?vehicleId=' + encodeURIComponent(vehicleId || ''))
@@ -43,8 +67,20 @@ export default function FuelLogs() {
   }
 
   useEffect(() => {
-    loadVehicles().catch(console.error)
+    loadCompanies()
+      .then(() => {
+        loadDrivers().catch(console.error)
+        loadVehicles().catch(console.error)
+      })
+      .catch(console.error)
   }, [])
+
+  useEffect(() => {
+    if (!companyId) return
+    loadDrivers().catch(console.error)
+    loadVehicles().catch(console.error)
+  }, [companyId])
+
 
   useEffect(() => {
     if (vehicleId) loadLogs().catch(console.error)
@@ -101,6 +137,19 @@ export default function FuelLogs() {
 
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12 }}>
             <div style={{ flex: 1 }}>
+              <label>Company</label>
+              <select value={companyId} onChange={(e) => setCompanyId(e.target.value)}>
+                {companies.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12 }}>
+            <div style={{ flex: 1 }}>
               <label>Vehicle</label>
               <select value={vehicleId} onChange={(e) => setVehicleId(e.target.value)}>
                 {vehicles.map((v) => (
@@ -111,6 +160,7 @@ export default function FuelLogs() {
               </select>
             </div>
           </div>
+
 
           <table className="table">
             <thead>
@@ -210,8 +260,9 @@ export default function FuelLogs() {
           </form>
 
           <p style={{ marginTop: 12, fontSize: 12, color: '#64748b' }}>
-            Tip: add at least one vehicle in the backend seed/dev endpoint.
+            Tip: pick a company; seed/dev creates drivers + vehicles under it.
           </p>
+
         </div>
       </div>
     </div>

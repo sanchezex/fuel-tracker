@@ -5,6 +5,9 @@ import { pool } from './lib/db.js'
 import { vehiclesRouter } from './routes/vehicles.js'
 import { fuelLogsRouter } from './routes/fuelLogs.js'
 import { analyticsRouter } from './routes/analytics.js'
+import { companiesRouter } from './routes/companies.js'
+import { driversRouter } from './routes/drivers.js'
+
 
 const app = express()
 app.use(cors())
@@ -15,6 +18,9 @@ app.get('/api/health', (req, res) => res.json({ ok: true }))
 app.use('/api', vehiclesRouter)
 app.use('/api', fuelLogsRouter)
 app.use('/api/analytics', analyticsRouter)
+app.use('/api', companiesRouter)
+app.use('/api', driversRouter)
+
 
 const port = process.env.PORT ? Number(process.env.PORT) : 3000
 
